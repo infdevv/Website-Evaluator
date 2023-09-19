@@ -1,42 +1,44 @@
-import axios from 'axios';
-import cheerio from 'cheerio';
+import puppeteer from 'puppeteer';
+import { URL } from 'url'; // Import the URL module to parse the URL
 
-async function getWebsiteContent(url: string): Promise<string> {
-  try {
-    const response = await axios.get(url);
-    return response.data;
-  } catch (error) {
-    throw new Error(`Failed to fetch the website: ${error.message}`);
-  }
+async function checkWebsite(url: string) {
+  const browser = await puppeteer.launch();
+  const page = await browser.newPage();
+  await page.goto(url);
+
+  // Check for Discord webhook in the page source
+  const hasDiscordWebhook = await page.evaluate(() => {
+    const webhookRegex = /https:\/\/discord\.com\/api\/webhooks\/\d+\/\w+/i;
+    const pageSource = document.documentElement.innerHTML;
+    return webhookRegex.test(pageSource);
+  });
+
+  // Perform additional checks here as needed
+
+  // Extract the number of points from the URL query string
+  const urlObj = new URL(url);
+  const pointsQueryParam = urlObj.searchParams.get('points');
+  const points = pointsQueryParam ? parseInt(pointsQueryParam) : 0;
+
+  await browser.close();
+
+  return {
+    hasDiscordWebhook,
+    points,
+  };
 }
 
-function hasDiscordWebhooks(html: string): boolean {
-  // You can customize this regex pattern to match the format of Discord webhooks.
-  const discordWebhookPattern = /https:\/\/discord\.com\/api\/webhooks\/\w+\/\w+/;
-  return discordWebhookPattern.test(html);
-}
+const urlToCheck = process.argv[2]; // Get the URL from the command line argument
 
-function hasContentInBody(html: string): boolean {
-  const $ = cheerio.load(html);
-  const bodyContent = $('body').text().trim();
-  return bodyContent.length > 0;
-}
-
-async function checkWebsite(url: string): Promise<number> {
-  const html = await getWebsiteContent(url);
-  let points = 0;
-
-  if (hasDiscordWebhooks(html)) {
-    points += 1;
-  }
-
-  if (!hasContentInBody(html)) {
-    points += 1;
-  }
-
-  return points;
-}
-
-export async function main(websiteUrl: string): Promise<number> {
-  return checkWebsite(websiteUrl);
+if (!urlToCheck) {
+  console.error('Please provide a URL as a command line argument.');
+} else {
+  checkWebsite(urlToCheck)
+    .then((result) => {
+      console.log('Discord Webhook:', result.hasDiscordWebhook);
+      console.log('Points:', result.points);
+    })
+    .catch((error) => {
+      console.error('Error:', error);
+    });
 }
