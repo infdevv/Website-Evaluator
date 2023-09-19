@@ -37,11 +37,6 @@ async function checkWebsite(url: string): Promise<number> {
   return points;
 }
 
-const websiteUrl = 'https://example.com'; // Replace with the URL you want to check
-checkWebsite(websiteUrl)
-  .then((points) => {
-    console.log(`Website received ${points} points.`);
-  })
-  .catch((error) => {
-    console.error(error.message);
-  });
+export async function main(websiteUrl: string): Promise<number> {
+  return checkWebsite(websiteUrl);
+}
